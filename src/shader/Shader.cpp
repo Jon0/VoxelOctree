@@ -17,6 +17,7 @@ namespace std {
 
 Shader::Shader(string filename, GLenum shader_type) {
 	type = shader_type;
+	cout << "load shader " << filename << endl;
 
 	// load the fragment shader.
 	fstream fragmentShaderFile(filename, std::ios::in);

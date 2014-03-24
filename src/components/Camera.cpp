@@ -21,7 +21,7 @@ Camera::Camera():
 		cam_angle_d {1, 0, 0, 0},
 		click_old {1, 0, 0, 0},
 		click_new {1, 0, 0, 0},
-		camera_properties { GL_SHADER_STORAGE_BUFFER }
+		camera_properties { GL_SHADER_STORAGE_BUFFER, true }
 {
 	cam_aspect = 1.0;
 	viewzoom = 40.0;
@@ -39,10 +39,9 @@ void Camera::update( float tick ) {
 	cam_angle = cam_angle_d * cam_angle;
 	cam_angle_d = glm::slerp( glm::quat(), cam_angle_d, ( 1 - tick * 10 ) );
 
-	//float x = focus.x, y = focus.y, z = focus.z;
 	camera_properties.data->P = glm::perspective(45.0f, cam_aspect, 1.0f, 1000.0f);
 	camera_properties.data->V = glm::translate( glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -viewzoom) ) * glm::mat4_cast(cam_angle);
-	camera_properties.data->M = glm::mat4(1.0f);
+	camera_properties.data->I = glm::inverse(camera_properties.data->P * camera_properties.data->V);
 	camera_properties.update();
 }
 

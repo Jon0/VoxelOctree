@@ -28,12 +28,14 @@ public:
 	 */
 	function<GLsizeiptr()> sizeFunc;
 
-	Buffer(GLenum t) {
+	Buffer(GLenum t, bool init) {
 		type = t;
 		glGenBuffers(1, &location);
 
-		data = new T();
-		sizeFunc = []() -> GLsizeiptr { return 1; };
+		if (init) {
+			data = new T();
+			sizeFunc = []() -> GLsizeiptr { return 1; };
+		}
 	}
 
 	Buffer(GLenum t, T *initial, function<GLsizeiptr()> f) {

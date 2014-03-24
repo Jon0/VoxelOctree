@@ -13,14 +13,16 @@ namespace std {
 
 Texture::Texture() {
 	// TODO Auto-generated constructor stub
-	width = 400;
-	height = 400;
+	width = 1536;
+	height = 864;
 
 	int *dt = new int [width*height];
-	for (int i = 0; i < width*height; ++i) dt[i] = rand();
+	for (int i = 0; i < width*height; ++i) dt[i] = 0xff000000 | rand();
 
 	glEnable (GL_TEXTURE_RECTANGLE_NV);
 	createTexture(dt);
+
+	delete dt;
 }
 
 Texture::~Texture() {
@@ -30,7 +32,7 @@ Texture::~Texture() {
 void Texture::createTexture(int *image_data) {
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_RECTANGLE_NV, texture);
-	glTexImage2D(GL_TEXTURE_RECTANGLE_NV, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
+	glTexImage2D(GL_TEXTURE_RECTANGLE_NV, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
 
 	// select modulate to mix texture with color for shading
 	glTexEnvf( GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
@@ -40,7 +42,7 @@ void Texture::createTexture(int *image_data) {
 
 void Texture::updateTexture(int *image_data) {
 	glBindTexture(GL_TEXTURE_RECTANGLE_NV, texture);
-	glTexImage2D(GL_TEXTURE_RECTANGLE_NV, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
+	glTexImage2D(GL_TEXTURE_RECTANGLE_NV, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
 }
 
 bool Texture::containsPoint(int x, int y) {

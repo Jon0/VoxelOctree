@@ -22,7 +22,7 @@ namespace std {
 struct CameraProperties {
 	glm::mat4 P;
 	glm::mat4 V;
-	glm::mat4 M;
+	glm::mat4 I;
 };
 
 void getArc(int, int, int, int, float, glm::quat &);

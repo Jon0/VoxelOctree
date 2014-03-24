@@ -13,6 +13,7 @@
 
 #include "../buffer/Buffer.h"
 #include "../buffer/Texture.h"
+#include "../buffer/Octree.h"
 
 namespace std {
 
@@ -30,8 +31,11 @@ public:
 
 private:
 	Pipeline tex_pipeline;
+	Pipeline comp_pipeline;
+
 	Buffer<texvec> buff;
 	Texture t;
+	Octree tree;
 };
 
 } /* namespace std */

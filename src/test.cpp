@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
 
 	glfwSetErrorCallback(error_callback);
 
-	GLFWwindow* window = glfwCreateWindow(800, 600, "Window", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(1536, 864, "Window", NULL, NULL);
 	glfwMakeContextCurrent(window);
 
 	// Initialize GLEW
@@ -40,12 +40,20 @@ int main(int argc, char *argv[]) {
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
 
+    /*
+     * camera viewpoint
+     */
+    Camera camera;
+    camera.resize(1536, 864);
+    camera.update(0.0f);
+    camera.properties()->bind(1);
+
     Renderer r;
 
     /*
      * gl error check
      */
-    if (int error = glGetError()) cout << "error = " << error << endl;
+    if (int error = glGetError()) cout << "initialise error " << error << endl;
 
     /*
      * start loop
@@ -56,14 +64,34 @@ int main(int argc, char *argv[]) {
 	{
 	    int width, height;
 		glfwGetFramebufferSize(window, &width, &height);
-		glViewport(0, 0, width, height);
 
+		if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT)) {
+			glfwGetCursorPos(window, &mousex, &mousey);
+
+			if (!mDown) {
+				camera.mouseClicked(0, 0, mousex, height-mousey);
+			}
+			else {
+				camera.mouseDragged(mousex, height-mousey);
+			}
+			mDown = true;
+		}
+		else if (mDown) {
+			camera.mouseClicked(0, 1, mousex, height-mousey);
+			mDown = false;
+		}
+	    camera.update(0.01f);
+
+
+		glViewport(0, 0, width, height);
 		glClear(GL_COLOR_BUFFER_BIT);
 		r.draw();
 
 		glFlush();
 		glfwSwapBuffers(window);
 		glfwPollEvents();
+
+	    if (int error = glGetError()) cout << "error " << error << endl;
 	}
 
 	glfwDestroyWindow(window);
