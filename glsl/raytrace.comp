@@ -9,15 +9,68 @@ layout(std430, binding = 1) buffer Camera {
 	mat4 I;
 };
 
-
-
 struct Ray{
 	vec3 origin;
 	vec3 dir;
 };
 
-// TODO intersection
-// http://wiki.cgsociety.org/index.php/Ray_Sphere_Intersection
+bool findVoxel(vec3 p) {
+	return true;
+}
+
+bool check(vec3 p) {
+	vec3 mp = mod(p, 6.0);
+	return floor(mp) == vec3(0) || ceil(mp) == vec3(1);
+
+	//return 0 <= mp.x && mp.x <= 1 && 0 <= mp.y && mp.y <= 1 && 0 <= mp.z && mp.z <= 1;
+}
+
+vec3 intersect(Ray r){
+	float k = 0.0;
+	vec3 edge = vec3(0);
+	vec3 next = r.origin;
+	vec3 outcol = vec3(0);
+	float q = 1.0;
+	while (k < 1.0) {
+		if ( check( next ) ) {
+			//return vec3(0, 0, 0);
+			float diff = q - q * 0.1;
+			q *= 0.1;
+			outcol += diff * vec3(0.1, 0.1, 0.1);
+			r.dir = reflect(r.dir, edge);
+		}
+
+		// position inside voxel
+		vec3 modu = mod(next, 1.0);
+		if ( r.dir.x <= 0 && modu.x <= 0 ) modu.x = 1.0;
+		if ( r.dir.y <= 0 && modu.y <= 0 ) modu.y = 1.0;
+		if ( r.dir.z <= 0 && modu.z <= 0 ) modu.z = 1.0;
+
+		// multiple of each element required to reach next voxel
+		// modu + t * r.dir = ceil( r.dir ) = 1 or 0
+		vec3 t = ( ceil( r.dir ) - modu ) / r.dir;
+
+		if ( 0 < t.x && (0 >= t.y || t.x <= t.y) && (0 >= t.z || t.x <= t.z) ) {
+			next += t.x * r.dir;
+			next.x = round(next.x);
+			edge = vec3(sign( -r.dir.x ), 0, 0);
+		}
+		if (0 < t.y && (0 >= t.z || t.y <= t.z) && (0 >= t.x || t.y <= t.x) ) {
+			next += t.y * r.dir;
+			next.y = round(next.y);
+			edge = vec3(0, sign( -r.dir.y ), 0);
+		}
+		if (0 < t.z && (0 >= t.x || t.z <= t.x) && (0 >= t.y || t.z <= t.y) ) {
+			next += t.z * r.dir;
+			next.z = round(next.z);
+			edge = vec3(0, 0, sign( -r.dir.z ));
+		}
+		k += 0.03;
+	}
+	outcol += q * r.dir;
+
+	return outcol;
+}
 
 
 Ray initRay(uint x_in, uint y_in){
@@ -32,10 +85,8 @@ Ray initRay(uint x_in, uint y_in){
 	vec4 pos1 = I * pt1;
 	vec4 pos2 = I * pt2;
 
-	r.dir = (pos2).xyz;
-	normalize(r.dir);
-
 	r.origin = pos1.xyz;
+	r.dir = normalize((pos2).xyz);
 
 	return r;
 }
@@ -45,12 +96,15 @@ void main(){
 	uint x = gl_GlobalInvocationID.x;
 	uint y = gl_GlobalInvocationID.y;
 
-	if(x < 1536 && y < 864){
-		Ray r = initRay(x, y);
+	Ray r = initRay(x, y);
 
-		vec4 color = vec4(r.dir, 1.0);
+	vec3 outdir = intersect(r);
 
-		imageStore(outputTexture, ivec2(x, y), color);
+	vec4 color = vec4(outdir/2.0 + 0.5, 1.0);
+	//float a = intersect(r);
+	//if ( a > 0 ) {
+	//	color = vec4(a, a, a, 1.0);
+	//}
 
-	}
+	imageStore(outputTexture, ivec2(x, y), color);
 }
