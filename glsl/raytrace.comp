@@ -18,11 +18,25 @@ bool findVoxel(vec3 p) {
 	return true;
 }
 
+/*
+ * check ray entering a solid space
+ */
 bool check(vec3 p) {
-	vec3 mp = mod(p, 6.0);
-	return floor(mp) == vec3(0) || ceil(mp) == vec3(1);
+	//vec3 mp = mod(p, 3.0);
+	//return floor(mp) == vec3(0) || ceil(mp) - 1 == vec3(0);
 
-	//return 0 <= mp.x && mp.x <= 1 && 0 <= mp.y && mp.y <= 1 && 0 <= mp.z && mp.z <= 1;
+	vec4 pa = imageLoad(voxel, ivec3( 64 + floor(p) ));
+	vec4 pb = imageLoad(voxel, ivec3( 64 + ceil(p) - 1 ));
+
+	//if (pa.a > 0) {
+	//	return pa;
+	//}
+	//else if (pb.a > 0) {
+	//	return pb;
+	//}
+	//return vec4(0);
+
+	return pa.a > 0 || pb.a > 0;
 }
 
 vec3 intersect(Ray r){
@@ -32,12 +46,12 @@ vec3 intersect(Ray r){
 	vec3 outcol = vec3(0);
 	float q = 1.0;
 	while (k < 1.0) {
+		//vec4 col = check( next );
 		if ( check( next ) ) {
-			//return vec3(0, 0, 0);
-			float diff = q - q * 0.1;
-			q *= 0.1;
+			float diff = q - q * 0.4;
+			q *= 0.4;
 			outcol += diff * vec3(0.1, 0.1, 0.1);
-			r.dir = reflect(r.dir, edge);
+			r.dir = reflect(r.dir, -edge); // col.xyz
 		}
 
 		// position inside voxel
@@ -50,22 +64,25 @@ vec3 intersect(Ray r){
 		// modu + t * r.dir = ceil( r.dir ) = 1 or 0
 		vec3 t = ( ceil( r.dir ) - modu ) / r.dir;
 
-		if ( 0 < t.x && (0 >= t.y || t.x <= t.y) && (0 >= t.z || t.x <= t.z) ) {
-			next += t.x * r.dir;
+		float min = t.x;
+		if (t.y < min) min = t.y;
+		if (t.z < min) min = t.z;
+
+		next += min * r.dir;
+
+		if ( min == t.x ) {
 			next.x = round(next.x);
 			edge = vec3(sign( -r.dir.x ), 0, 0);
 		}
-		if (0 < t.y && (0 >= t.z || t.y <= t.z) && (0 >= t.x || t.y <= t.x) ) {
-			next += t.y * r.dir;
+		if ( min == t.y ) {
 			next.y = round(next.y);
 			edge = vec3(0, sign( -r.dir.y ), 0);
 		}
-		if (0 < t.z && (0 >= t.x || t.z <= t.x) && (0 >= t.y || t.z <= t.y) ) {
-			next += t.z * r.dir;
+		if ( min == t.z ) {
 			next.z = round(next.z);
 			edge = vec3(0, 0, sign( -r.dir.z ));
 		}
-		k += 0.03;
+		k += 0.015;
 	}
 	outcol += q * r.dir;
 
@@ -99,12 +116,7 @@ void main(){
 	Ray r = initRay(x, y);
 
 	vec3 outdir = intersect(r);
-
 	vec4 color = vec4(outdir/2.0 + 0.5, 1.0);
-	//float a = intersect(r);
-	//if ( a > 0 ) {
-	//	color = vec4(a, a, a, 1.0);
-	//}
 
 	imageStore(outputTexture, ivec2(x, y), color);
 }
