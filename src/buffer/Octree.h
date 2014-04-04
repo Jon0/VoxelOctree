@@ -23,7 +23,7 @@ struct Node {
 };
 
 struct OctreeBuffer {
-	Node n[1000];
+	Node n[3000000];
 };
 
 class Octree {

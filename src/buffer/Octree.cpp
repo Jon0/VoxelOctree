@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <stdlib.h>
+#include <glm/ext.hpp>
 
 #include "Octree.h"
 
@@ -61,7 +62,7 @@ Octree::Octree(unsigned int l): ob { GL_SHADER_STORAGE_BUFFER, true } {
 
 	glm::ivec3 half = glm::ivec3(levels/2.0f, levels/2.0f, levels/2.0f);
 	int root = genNode(-half, half);
-	ob.update();
+	//ob.update();
 
 	cout << free_ind << " octree nodes used " << endl;
 
@@ -76,7 +77,7 @@ int Octree::genNode(glm::ivec3 start, glm::ivec3 end) {
 
 		// create inner nodes
 		int h = (end.x - start.x) / 2;
-		glm::ivec3 mid = (end - start) / 2;
+		glm::ivec3 mid = end/2 + start/2;
 
 		// 8 children in octree node
 		nd.child[0] = genNode(start, mid);
@@ -92,6 +93,7 @@ int Octree::genNode(glm::ivec3 start, glm::ivec3 end) {
 
 		// leaf node
 		nd.child[0] = -1;
+
 	}
 
 	ob.data->n[node_index] = nd;

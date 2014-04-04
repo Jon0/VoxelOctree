@@ -14,7 +14,7 @@ layout(std430) struct Node {
 };
 
 layout(std430, binding = 2) buffer Octree {
-	Node n[1000];
+	Node n[3000000];
 };
 
 struct Ray{
@@ -49,6 +49,11 @@ bool check(vec3 p) {
 
 vec3 intersectOct(Ray r){
 
+		// lookup node
+		// if not empty look inside child node
+
+
+		int node_addr = 0;
 		float voxel_size = 128.0;
 		vec3 next = r.origin;
 
@@ -80,6 +85,9 @@ vec3 intersectOct(Ray r){
 			next.z = round(next.z);
 			edge = vec3(0, 0, sign( -r.dir.z ));
 		}
+
+
+
 
 
 }
