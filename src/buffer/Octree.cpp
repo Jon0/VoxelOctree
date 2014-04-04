@@ -5,6 +5,7 @@
  *      Author: remnanjona
  */
 
+#include <iostream>
 #include <stdlib.h>
 
 #include "Octree.h"
@@ -30,7 +31,8 @@ void makeSphere(uc_rgba *image_data, int levels, glm::vec3 mid, float radius) {
 	}
 }
 
-Octree::Octree(unsigned int l) {
+Octree::Octree(unsigned int l): ob { GL_SHADER_STORAGE_BUFFER, true } {
+	free_ind = 0;
 	levels = l;
 	glGenTextures(1, &addr);
 	glBindTexture(GL_TEXTURE_3D, addr);
@@ -57,6 +59,43 @@ Octree::Octree(unsigned int l) {
 
 	//glGenerateMipmap(GL_TEXTURE_3D);
 
+	glm::ivec3 half = glm::ivec3(levels/2.0f, levels/2.0f, levels/2.0f);
+	int root = genNode(-half, half);
+	ob.update();
+
+	cout << free_ind << " octree nodes used " << endl;
+
+}
+
+int Octree::genNode(glm::ivec3 start, glm::ivec3 end) {
+	Node nd;
+	int node_index = free_ind;
+	free_ind++;
+
+	if (start.x + 1 < end.x) {
+
+		// create inner nodes
+		int h = (end.x - start.x) / 2;
+		glm::ivec3 mid = (end - start) / 2;
+
+		// 8 children in octree node
+		nd.child[0] = genNode(start, mid);
+		nd.child[1] = genNode(start + glm::ivec3(h, 0, 0), mid + glm::ivec3(h, 0, 0));
+		nd.child[2] = genNode(start + glm::ivec3(0, h, 0), mid + glm::ivec3(0, h, 0));
+		nd.child[3] = genNode(start + glm::ivec3(0, 0, h), mid + glm::ivec3(0, 0, h));
+		nd.child[4] = genNode(start + glm::ivec3(h, h, 0), mid + glm::ivec3(h, h, 0));
+		nd.child[5] = genNode(start + glm::ivec3(0, h, h), mid + glm::ivec3(0, h, h));
+		nd.child[6] = genNode(start + glm::ivec3(h, 0, h), mid + glm::ivec3(h, 0, h));
+		nd.child[7] = genNode(start + glm::ivec3(h, h, h), mid + glm::ivec3(h, h, h));
+	}
+	else {
+
+		// leaf node
+		nd.child[0] = -1;
+	}
+
+	ob.data->n[node_index] = nd;
+	return node_index;
 }
 
 Octree::~Octree() {
@@ -65,6 +104,7 @@ Octree::~Octree() {
 
 void Octree::bind(GLuint i) {
 	glBindImageTexture(i, addr, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA8);
+	ob.bind(i+1);
 }
 
 } /* namespace std */

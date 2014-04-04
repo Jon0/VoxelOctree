@@ -9,6 +9,14 @@ layout(std430, binding = 1) buffer Camera {
 	mat4 I;
 };
 
+layout(std430) struct Node {
+	int child[8];
+};
+
+layout(std430, binding = 2) buffer Octree {
+	Node n[1000];
+};
+
 struct Ray{
 	vec3 origin;
 	vec3 dir;
@@ -37,6 +45,43 @@ bool check(vec3 p) {
 	//return vec4(0);
 
 	return pa.a > 0 || pb.a > 0;
+}
+
+vec3 intersectOct(Ray r){
+
+		float voxel_size = 128.0;
+		vec3 next = r.origin;
+
+		// position inside voxel
+		vec3 modu = mod(next, voxel_size);
+		if ( r.dir.x <= 0 && modu.x <= 0 ) modu.x = voxel_size;
+		if ( r.dir.y <= 0 && modu.y <= 0 ) modu.y = voxel_size;
+		if ( r.dir.z <= 0 && modu.z <= 0 ) modu.z = voxel_size;
+
+		// multiple of each element required to reach next voxel
+		// modu + t * r.dir = ceil( r.dir ) = 1 or 0
+		vec3 t = ( voxel_size * ceil( r.dir ) - modu ) / r.dir;
+
+		float min = t.x;
+		if (t.y < min) min = t.y;
+		if (t.z < min) min = t.z;
+
+		next += min * r.dir;
+
+		if ( min == t.x ) {
+			next.x = round(next.x);
+			edge = vec3(sign( -r.dir.x ), 0, 0);
+		}
+		if ( min == t.y ) {
+			next.y = round(next.y);
+			edge = vec3(0, sign( -r.dir.y ), 0);
+		}
+		if ( min == t.z ) {
+			next.z = round(next.z);
+			edge = vec3(0, 0, sign( -r.dir.z ));
+		}
+
+
 }
 
 vec3 intersect(Ray r){
