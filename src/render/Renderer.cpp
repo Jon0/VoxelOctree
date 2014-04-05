@@ -12,7 +12,7 @@
 
 namespace std {
 
-Renderer::Renderer(): buff(GL_ARRAY_BUFFER, false), tree(128) {
+Renderer::Renderer(): buff(GL_ARRAY_BUFFER, false), tree(256) {
 
 	vector<texvec> data = {
 			{glm::vec4(-1,-1,0,1), glm::vec2(0,0)}, {glm::vec4(1,-1,0,1), glm::vec2(t.width,0)},

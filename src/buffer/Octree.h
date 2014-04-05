@@ -20,10 +20,17 @@ namespace std {
 
 struct Node {
 	int child[8];
+	int parent;
 };
 
 struct OctreeBuffer {
-	Node n[3000000];
+	int total_size;
+	int brick_size;
+	Node n[20000];
+};
+
+struct uc_rgba {
+	unsigned char r, g, b, a;
 };
 
 class Octree {
@@ -34,13 +41,17 @@ public:
 	Octree(unsigned int);
 	virtual ~Octree();
 
-	int genNode(glm::ivec3, glm::ivec3);
+	int genNode(glm::ivec3, glm::ivec3, int);
+
+	uc_rgba *getNode(glm::ivec3);
 
 	void bind(GLuint);
 
 private:
 	Buffer<OctreeBuffer> ob;
 	int free_ind;
+
+	uc_rgba *image_data;
 };
 
 } /* namespace std */

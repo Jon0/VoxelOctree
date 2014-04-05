@@ -24,7 +24,7 @@ Camera::Camera():
 		camera_properties { GL_SHADER_STORAGE_BUFFER, true }
 {
 	cam_aspect = 1.0;
-	viewzoom = 80.0;
+	viewzoom = 200.0;
 
 	// mouse action settings
 	arcball_x = arcball_y = 0.0;

@@ -39,11 +39,10 @@ void Pipeline::addStage(Shader &s, GLbitfield stages) {
 	char attname [32];
 	for (int i = 0; i < num_blocks; ++i) {
 		glGetProgramResourceName(program, GL_SHADER_STORAGE_BLOCK, i, 32, &len, attname );
-		cout << "attribute: " << attname << endl;
-
 		GLuint block_index = glGetProgramResourceIndex( program, GL_SHADER_STORAGE_BLOCK, attname );
+		glShaderStorageBlockBinding( program, block_index, i+1 ); // bind to i.
 
-		glShaderStorageBlockBinding( program, block_index, 1 ); // bind to 1.
+		cout << "attribute: " << attname << " bound to " << (i+1) << endl;
 	}
 
 	/*

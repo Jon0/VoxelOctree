@@ -9,17 +9,21 @@ layout(std430, binding = 1) buffer Camera {
 	mat4 I;
 };
 
-layout(std430) struct Node {
+struct Node {
 	int child[8];
+	int parent;
 };
 
 layout(std430, binding = 2) buffer Octree {
-	Node n[3000000];
+	int total_size;
+	int brick_size;
+	Node node[20000];
 };
 
 struct Ray{
 	vec3 origin;
 	vec3 dir;
+	vec3 dir_inv;
 };
 
 bool findVoxel(vec3 p) {
@@ -47,101 +51,161 @@ bool check(vec3 p) {
 	return pa.a > 0 || pb.a > 0;
 }
 
-vec3 intersectOct(Ray r){
+vec3 findInc(vec3 start, vec3 dir, float voxel_size) {
+	// position inside voxel
+	vec3 modu = mod(start, voxel_size);
+	if ( dir.x <= 0 && modu.x <= 0 ) modu.x = voxel_size;
+	if ( dir.y <= 0 && modu.y <= 0 ) modu.y = voxel_size;
+	if ( dir.z <= 0 && modu.z <= 0 ) modu.z = voxel_size;
 
-		// lookup node
-		// if not empty look inside child node
-
-
-		int node_addr = 0;
-		float voxel_size = 128.0;
-		vec3 next = r.origin;
-
-		// position inside voxel
-		vec3 modu = mod(next, voxel_size);
-		if ( r.dir.x <= 0 && modu.x <= 0 ) modu.x = voxel_size;
-		if ( r.dir.y <= 0 && modu.y <= 0 ) modu.y = voxel_size;
-		if ( r.dir.z <= 0 && modu.z <= 0 ) modu.z = voxel_size;
-
-		// multiple of each element required to reach next voxel
-		// modu + t * r.dir = ceil( r.dir ) = 1 or 0
-		vec3 t = ( voxel_size * ceil( r.dir ) - modu ) / r.dir;
-
-		float min = t.x;
-		if (t.y < min) min = t.y;
-		if (t.z < min) min = t.z;
-
-		next += min * r.dir;
-
-		if ( min == t.x ) {
-			next.x = round(next.x);
-			edge = vec3(sign( -r.dir.x ), 0, 0);
-		}
-		if ( min == t.y ) {
-			next.y = round(next.y);
-			edge = vec3(0, sign( -r.dir.y ), 0);
-		}
-		if ( min == t.z ) {
-			next.z = round(next.z);
-			edge = vec3(0, 0, sign( -r.dir.z ));
-		}
-
-
-
-
-
+	// multiple of each element required to reach next voxel
+	// modu + t * dir = ceil( dir ) = 1 or 0
+	return ( voxel_size * ceil( dir ) - modu ) / dir;
 }
 
-vec3 intersect(Ray r){
-	float k = 0.0;
-	vec3 edge = vec3(0);
-	vec3 next = r.origin;
-	vec3 outcol = vec3(0);
-	float q = 1.0;
-	while (k < 1.0) {
-		//vec4 col = check( next );
-		if ( check( next ) ) {
-			float diff = q - q * 0.4;
-			q *= 0.4;
-			outcol += diff * vec3(0.1, 0.1, 0.1);
-			r.dir = reflect(r.dir, -edge); // col.xyz
+Node findNode(vec3 v){
+	int node_addr = 0;
+	ivec3 parent_center = ivec3(0);
+	int voxel_half = total_size / 4;
+
+	while (node[node_addr].child[0] >= 0) {
+		int n = 0;
+		if (v.x >= parent_center.x) {
+			n += 4;
+			parent_center.x += voxel_half;
+		}
+		else {
+			parent_center.x -= voxel_half;
 		}
 
-		// position inside voxel
-		vec3 modu = mod(next, 1.0);
-		if ( r.dir.x <= 0 && modu.x <= 0 ) modu.x = 1.0;
-		if ( r.dir.y <= 0 && modu.y <= 0 ) modu.y = 1.0;
-		if ( r.dir.z <= 0 && modu.z <= 0 ) modu.z = 1.0;
-
-		// multiple of each element required to reach next voxel
-		// modu + t * r.dir = ceil( r.dir ) = 1 or 0
-		vec3 t = ( ceil( r.dir ) - modu ) / r.dir;
-
-		float min = t.x;
-		if (t.y < min) min = t.y;
-		if (t.z < min) min = t.z;
-
-		next += min * r.dir;
-
-		if ( min == t.x ) {
-			next.x = round(next.x);
-			edge = vec3(sign( -r.dir.x ), 0, 0);
+		if (v.y >= parent_center.y) {
+			n += 2;
+			parent_center.y += voxel_half;
 		}
-		if ( min == t.y ) {
-			next.y = round(next.y);
-			edge = vec3(0, sign( -r.dir.y ), 0);
+		else {
+			parent_center.y -= voxel_half;
 		}
-		if ( min == t.z ) {
-			next.z = round(next.z);
-			edge = vec3(0, 0, sign( -r.dir.z ));
+
+		if (v.z >= parent_center.z) {
+			n += 1;
+			parent_center.z += voxel_half;
 		}
-		k += 0.015;
+		else {
+			parent_center.z -= voxel_half;
+		}
+
+		node_addr = node[node_addr].child[n];
+		voxel_half /= 2;
 	}
-	outcol += q * r.dir;
-
-	return outcol;
+	return node[node_addr];
 }
 
+// follow ray until it leaves space inside start and end
+// problems: random clipping, cause obstruction, rays get stuck
+Ray intersectLeaf(vec3 start, vec3 end, Ray r, vec3 eInit){
+	Ray inray = r;
+	float k = 0.0;
+	vec3 edge = eInit;
+	vec3 outcol = vec3(0);
+	//float q = 1.0;
+	while (k < 1.0) {
+		if ( check( inray.origin ) ) {
+			//float diff = q - q * 0.4;
+			//q *= 0.4;
+			//outcol += diff * vec3(0.1, 0.1, 0.1);
+			inray.dir = reflect(inray.dir, -edge);
+			break;
+		}
+
+			vec3 t = findInc(inray.origin, inray.dir, 1.0);
+			float min = t.x;
+			if (t.y < min) min = t.y;
+			if (t.z < min) min = t.z;
+
+			inray.origin += min * inray.dir;
+
+			if ( min == t.x ) {
+				inray.origin.x = round(inray.origin.x);
+				edge = vec3(sign( -inray.dir.x ), 0, 0);
+			}
+			if ( min == t.y ) {
+				inray.origin.y = round(inray.origin.y);
+				edge = vec3(0, sign( -inray.dir.y ), 0);
+			}
+			if ( min == t.z ) {
+				inray.origin.z = round(inray.origin.z);
+				edge = vec3(0, 0, sign( -inray.dir.z ));
+			}
+
+		//if (inray.origin.x == start.x || inray.origin.x == end.x
+		//	|| inray.origin.y == start.y || inray.origin.y == end.y
+		//	|| inray.origin.z == start.z || inray.origin.z == end.z ) {
+		//	break;
+		//}
+
+		k += 0.01;
+	}
+	//outcol += q * r.dir;
+
+	return inray;
+}
+
+vec3 intersectOct(Ray inray){
+	Ray r = inray;
+	vec3 edge = vec3(0);
+
+	// until ray exits octree
+	for (int i = 0; i < 100; ++i) {
+
+		//if (inray.origin.x < -total_size/2 || total_size/2 < inray.origin.x
+		//	|| inray.origin.y < -total_size/2 || total_size/2 < inray.origin.y
+		//	|| inray.origin.z < -total_size/2 || total_size/2 < inray.origin.z ) {
+		//	break;
+		//}
+
+		Node n = findNode(r.origin + edge);
+		vec3 start = vec3(n.child[2], n.child[3], n.child[4]);
+		vec3 end = vec3(n.child[5], n.child[6], n.child[7]);
+		float vox_size = end.y - start.y;
+
+		if ( n.child[1] != 0 ) {
+			// n is a leaf
+			vec3 inDir = r.dir;
+			r = intersectLeaf(start, end, r, -edge*2);
+
+			//if (inDir != r.dir)
+			return r.dir;
+		}
+		else if ( n.child[1] == 0 ) {
+			// empty space
+
+			vec3 t = findInc(r.origin, r.dir, vox_size);
+			float min = t.x;
+			if (t.y < min) min = t.y;
+			if (t.z < min) min = t.z;
+			r.origin += min * r.dir;
+
+			if ( min == t.x ) {
+				r.origin.x = round(r.origin.x);
+				edge = vec3(sign( r.dir.x )/2.0, 0, 0);
+			}
+			if ( min == t.y ) {
+				r.origin.y = round(r.origin.y);
+				edge = vec3(0, sign( r.dir.y )/2.0, 0);
+			}
+			if ( min == t.z ) {
+				r.origin.z = round(r.origin.z);
+				edge = vec3(0, 0, sign( r.dir.z )/2.0);
+			}
+		}
+		else {
+			// error
+			return vec3(0.0, 0.0, 1.0);
+		}
+	}
+
+	return r.dir;
+}
 
 Ray initRay(uint x_in, uint y_in){
 	Ray r;
@@ -157,8 +221,63 @@ Ray initRay(uint x_in, uint y_in){
 
 	r.origin = pos1.xyz;
 	r.dir = normalize((pos2).xyz);
+	r.dir_inv = 1 / r.dir;
 
 	return r;
+}
+
+bool intersection(vec3 bl, vec3 bh, Ray r) {
+  double tx1 = (bl.x - r.origin.x)*r.dir_inv.x;
+  double tx2 = (bh.x - r.origin.x)*r.dir_inv.x;
+
+  double tmin = min(tx1, tx2);
+  double tmax = max(tx1, tx2);
+
+  double ty1 = (bl.y - r.origin.y)*r.dir_inv.y;
+  double ty2 = (bh.y - r.origin.y)*r.dir_inv.y;
+
+  tmin = max(tmin, min(ty1, ty2));
+  tmax = min(tmax, max(ty1, ty2));
+
+  double tz1 = (bl.z - r.origin.z)*r.dir_inv.z;
+  double tz2 = (bh.z - r.origin.z)*r.dir_inv.z;
+
+  tmin = max(tmin, min(tz1, tz2));
+  tmax = min(tmax, max(tz1, tz2));
+
+  return tmax >= tmin;
+}
+
+void incToBound(inout Ray r) {
+	// increment ray to octree bounds
+	bool hit = false;
+	for (int i = 0; i < 7; ++i) {
+		if ( -total_size/2 <= r.origin.x
+			&& r.origin.x <= total_size/2
+			&& -total_size/2 <= r.origin.y
+			&& r.origin.y <= total_size/2
+			&& -total_size/2 <= r.origin.z
+			&& r.origin.z <= total_size/2 ) {
+			hit = true;
+			break;
+		}
+		vec3 t = findInc(r.origin, r.dir, 64);
+
+		float min = t.x;
+		if (t.y < min) min = t.y;
+		if (t.z < min) min = t.z;
+		r.origin += min * r.dir;
+
+		if ( min == t.x ) {
+			r.origin.x = round(r.origin.x);
+		}
+		if ( min == t.y ) {
+			r.origin.y = round(r.origin.y);
+		}
+		if ( min == t.z ) {
+			r.origin.z = round(r.origin.z);
+		}
+	}
 }
 
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
@@ -167,8 +286,7 @@ void main(){
 	uint y = gl_GlobalInvocationID.y;
 
 	Ray r = initRay(x, y);
-
-	vec3 outdir = intersect(r);
+	vec3 outdir = intersectOct(r);
 	vec4 color = vec4(outdir/2.0 + 0.5, 1.0);
 
 	imageStore(outputTexture, ivec2(x, y), color);
